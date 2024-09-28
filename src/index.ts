@@ -7,12 +7,21 @@ type Env = {
 // Worker
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const upgradeHeader = request.headers.get('Upgrade');
-    if (!upgradeHeader || upgradeHeader !== 'websocket') {
-      return new Response('Durable Object expected Upgrade: websocket', { status: 426 });
+    if (request.url.endsWith('/ws')) {
+      const upgradeHeader = request.headers.get('Upgrade');
+      if (!upgradeHeader || upgradeHeader !== 'websocket') {
+        return new Response('Durable Object expected Upgrade: websocket', { status: 426 });
+      }
+      const stub = env.WEBSOCKET_HIBERNATION_SERVER.get(env.WEBSOCKET_HIBERNATION_SERVER.idFromName('test'));
+      return stub.fetch(request);
     }
-    const stub = env.WEBSOCKET_HIBERNATION_SERVER.get(env.WEBSOCKET_HIBERNATION_SERVER.idFromName('test'));
-    return stub.fetch(request);
+    return new Response(null, {
+      status: 400,
+      statusText: 'Bad Request',
+      headers: {
+        'Content-Type': 'text/plain',
+      },
+    });
   },
 };
 
@@ -33,6 +42,7 @@ export class WebSocketHibernationServer extends DurableObject {
   }
 
   async webSocketClose(ws: WebSocket, code: number, reason: string, wasClean: boolean) {
+    console.log(ws, code, reason, wasClean)
     ws.close(code, 'Durable Object is closing WebSocket');
   }
 }
